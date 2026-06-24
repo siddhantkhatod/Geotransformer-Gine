@@ -101,21 +101,6 @@ python train.py --dataset HIV --seed 42 --full_ablation
 
 ---
 
-## Citation
-
-If you use this code, please cite:
-
-```bibtex
-@article{geotransformer2025,
-  title={Rethinking Virtual Nodes in Molecular Graph Transformers},
-  author={Your Name},
-  journal={Journal of Chemical Information and Modeling},
-  year={2025}
-}
-```
-
----
-
 ## License
 
 This project is licensed under the MIT License
