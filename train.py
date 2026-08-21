@@ -269,9 +269,9 @@ def build_pyg_data(smiles, label, desc, use_desc=True):
     data.edge_attr = edge_attr
     return data
 
-# ============================================
-# LayerScale & StochasticDepth
-# ============================================
+
+# LayerScale and StochasticDepth
+
 class LayerScale(nn.Module):
     def __init__(self, dim, init_value=1e-4):
         super().__init__()
@@ -290,9 +290,8 @@ class StochasticDepth(nn.Module):
         mask = torch.empty(x.size(0), 1, device=x.device).bernoulli_(self.keep_prob)
         return x / self.keep_prob * mask
 
-# ============================================
 # Graph Transformer Layer
-# ============================================
+
 class GraphTransformerConv(MessagePassing):
     def __init__(self, hidden_dim, edge_dim, num_heads=8, dropout=0.1):
         super().__init__(aggr='add', node_dim=0)
@@ -343,9 +342,9 @@ class GraphTransformerConv(MessagePassing):
         out = v * attn.unsqueeze(-1)
         return out.view(-1, self.num_heads * self.head_dim)
 
-# ============================================
+ 
 # Enhanced GINEConv
-# ============================================
+
 class EnhancedGINEConv(MessagePassing):
     def __init__(self, hidden_dim, edge_dim, dropout=0.1):
         super().__init__(aggr='add')
@@ -370,9 +369,9 @@ class EnhancedGINEConv(MessagePassing):
     def message(self, x_j, edge_attr):
         return self.nn(x_j) * torch.sigmoid(edge_attr)
 
-# ============================================
+
 # Atom Encoder
-# ============================================
+
 class AtomEncoder(nn.Module):
     def __init__(self, hidden_dim):
         super().__init__()
@@ -400,17 +399,11 @@ class AtomEncoder(nn.Module):
             x[:, 12].long().clamp(0, 4),
         ]
         embs = [emb(f) for emb, f in zip(self.embeddings, feats)]
-        return self.combine(torch.cat(embs, dim=-1))
+        return self.combine(torch.cat(embs, dim=-1)) 
 
-# ============================================
-# FIXED: Label-Agnostic Class Prototypes (NO LEAKAGE)
-# ============================================
+ 
 class ClassPrototypePool(nn.Module):
-    """
-    Computes class-specific prototype vectors from training data ONCE externally,
-    then uses them as fixed priors during training/testing.
-    NO label leakage — prototypes are precomputed, not from batch labels.
-    """
+
     def __init__(self, hidden_dim, n_classes=2):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -455,9 +448,7 @@ class ClassPrototypePool(nn.Module):
         node_weights = weights[batch]
         return global_add_pool(x * node_weights, batch)
 
-# ============================================
-# FIXED Main Model: NO data.y in forward()
-# ============================================
+
 class GeoTransformerModel(nn.Module):
     def __init__(self, hidden_dim=256, num_layers=5, num_tasks=1, dropout=0.2,
                  desc_dim=140, use_virtual_node=True, use_jk=True,
@@ -493,7 +484,6 @@ class GeoTransformerModel(nn.Module):
             if use_gated_vn:
                 self.vn_gates = nn.ParameterList([nn.Parameter(torch.zeros(1)) for _ in range(num_layers)])
 
-        # FIXED: Label-agnostic prototype pooling
         if use_prototype_pool:
             self.prototype_pool = ClassPrototypePool(hidden_dim)
 
@@ -547,7 +537,6 @@ class GeoTransformerModel(nn.Module):
             if collect_mechanistic:
                 mechanistic['node_reps'].append((x.detach().cpu(), batch.cpu()))
 
-            # FIXED: No data.y access! Use prototype pool or standard pooling.
             if self.use_virtual_node and vn is not None and i < self.num_layers - 1:
                 if self.use_prototype_pool and hasattr(self, 'prototype_pool'):
                     vn_update = self.prototype_pool(x, batch, use_prototype_weight=True)
@@ -579,9 +568,8 @@ class GeoTransformerModel(nn.Module):
             return out, mechanistic
         return out
 
-# ============================================
+
 # Baseline Models (GIN, D-MPNN, AttentiveFP)
-# ============================================
 class GINBaseline(nn.Module):
     def __init__(self, hidden_dim=256, num_layers=5, num_tasks=1, dropout=0.2,
                  desc_dim=140, use_virtual_node=False, use_jk=False,
@@ -737,9 +725,7 @@ class AttentiveFPBaseline(nn.Module):
             g = torch.cat([g, desc], dim=-1)
         return self.predictor(g)
 
-# ============================================
 # Knowledge Distillation Loss
-# ============================================
 class DistillationLoss(nn.Module):
     def __init__(self, temperature=4.0, alpha=0.5, feature_weight=0.1):
         super().__init__()
@@ -755,9 +741,8 @@ class DistillationLoss(nn.Module):
         feat_loss = F.mse_loss(student_features, teacher_features) if student_features is not None else 0
         return (1 - self.alpha) * hard_loss + self.alpha * soft_loss + self.feature_weight * feat_loss
 
-# ============================================
+
 # Focal Loss (alternative to BCE)
-# ============================================
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2.0, pos_weight=None):
         super().__init__()
@@ -772,9 +757,8 @@ class FocalLoss(nn.Module):
         loss = alpha_t * (1 - pt) ** self.gamma * bce
         return loss.mean()
 
-# ============================================
 # BCE Loss
-# ============================================
+
 class BCELossModule(nn.Module):
     def __init__(self, pos_weight=1.0):
         super().__init__()
@@ -783,9 +767,9 @@ class BCELossModule(nn.Module):
     def forward(self, logits, targets):
         return F.binary_cross_entropy_with_logits(logits, targets, pos_weight=self.pos_weight)
 
-# ============================================
-# Virtual Screening Metrics
-# ============================================
+
+# Enrichment factor, BEDROC, prediction at k matrices
+
 def enrichment_factor(y_true, y_score, alpha=0.01):
     n = len(y_true)
     n_alpha = max(1, int(alpha * n))
@@ -825,9 +809,9 @@ def compute_screening_metrics(y_true, y_score):
         metrics[f'P@{k}'] = precision_at_k(y_true, y_score, k)
     return metrics
 
-# ============================================
-# Calibration Metrics
-# ============================================
+
+# Calibration metrics 
+
 def expected_calibration_error(y_true, y_prob, n_bins=10):
     bins = np.linspace(0, 1, n_bins + 1)
     ece = 0.0
@@ -914,9 +898,7 @@ class DropEdge:
         mask = torch.rand(edge_index.size(1), device=edge_index.device) > self.drop_prob
         return edge_index[:, mask], edge_attr[mask] if edge_attr is not None else None
 
-# ============================================
-# FIXED Trainer: Stratified sampling + Focal loss + Screening metrics + Calibration
-# ============================================
+# Trainer- Stratified sampling + Focal loss + Screening metrics + Calibration
 class Trainer:
     def __init__(self, model, lr=1e-3, wd=1e-4, pos_weight=None,
                  use_ema=True, use_swa=True, device=DEVICE,
@@ -1065,9 +1047,8 @@ class Trainer:
                 preds.append(torch.sigmoid(out).cpu())
             return torch.cat(preds).numpy(), None
 
-# ============================================
 # Platt Scaling / Isotonic Calibration
-# ============================================
+
 class Calibrator:
     def __init__(self, method='platt'):
         self.method = method
@@ -1088,9 +1069,9 @@ class Calibrator:
             return self.calibrator.predict(y_prob)
         return y_prob
 
-# ============================================
+
 # PyG Dataset wrapper
-# ============================================
+
 class PyGDataset(Dataset):
     def __init__(self, graphs):
         self.graphs = graphs
@@ -1099,9 +1080,8 @@ class PyGDataset(Dataset):
     def __getitem__(self, i):
         return self.graphs[i]
 
-# ============================================
 # Mechanistic Analysis
-# ============================================
+
 def mechanistic_analysis(model_with_vn, model_without_vn, test_loader, device, output_dir="/mnt/agents/output"):
     os.makedirs(output_dir, exist_ok=True)
     model_with_vn.to(device)
@@ -1200,9 +1180,8 @@ def mechanistic_analysis(model_with_vn, model_without_vn, test_loader, device, o
     print(f"[MECHANISTIC] Figure saved to: {out_path}")
     return out_path
 
-# ============================================
 # Knowledge Distillation Training
-# ============================================
+
 def train_with_distillation(teacher_model, student_model, train_loader, val_loader,
                             epochs=200, patience=40, device=DEVICE, lr=1e-3, wd=1e-4, pos_weight=None,
                             temperature=4.0, alpha_kd=0.5):
@@ -1275,9 +1254,8 @@ def train_with_distillation(teacher_model, student_model, train_loader, val_load
         student_model.load_state_dict(best_state)
     return student_model
 
-# ============================================
-# Experiment runner (FIXED)
-# ============================================
+
+# Run Experiment  
 def run_experiment(name, cfg, use_desc, use_pos_weight=True, model_cls=GeoTransformerModel,
                    df=None, desc_arr=None, train_idx=None, val_idx=None, test_idx=None,
                    return_model=False, loss_type='bce', use_stratified=True,
@@ -1409,10 +1387,8 @@ def run_experiment(name, cfg, use_desc, use_pos_weight=True, model_cls=GeoTransf
     if return_model:
         return result, trained_model, trained_trainer, test_loader, graphs_test
     return result
-
-# ============================================
 # Main
-# ============================================
+
 def main():
     import sys
     clean_argv = [sys.argv[0]]
