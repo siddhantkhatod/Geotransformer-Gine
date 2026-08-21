@@ -4,9 +4,7 @@ from collections import defaultdict
 from typing import List, Dict, Tuple, Optional
 warnings.filterwarnings("ignore")
 
-# ============================================
-# Auto-install
-# ============================================
+
 for pkg in ["rdkit", "torch", "torch_geometric", "scikit-learn", "pandas", "numpy", "tqdm", "matplotlib", "seaborn"]:
     mod = pkg.replace("-", "_").replace("scikit_learn", "sklearn")
     try:
@@ -43,9 +41,7 @@ except ImportError:
         AttentiveFP = None
         print("[WARN] AttentiveFP not available.")
 
-# ============================================
-# Reproducibility
-# ============================================
+
 SEED = 0
 os.environ['PYTHONHASHSEED'] = str(SEED)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
@@ -58,9 +54,7 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"[DEVICE] {DEVICE} | [SEED] {SEED}")
 
-# ============================================
-# Dataset Configuration
-# ============================================
+
 DATASET_CONFIG = {
     "BBBP": {
         "url": "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv",
@@ -81,9 +75,7 @@ DATASET_CONFIG = {
     #}
 }
 
-# ============================================
-# Enhanced Molecular Descriptors (128-bit FP)
-# ============================================
+
 def compute_raw_descriptors(smiles):
     try:
         mol = Chem.MolFromSmiles(smiles)
@@ -103,9 +95,7 @@ def compute_raw_descriptors(smiles):
     except Exception:
         return None
 
-# ============================================
-# Stratified Scaffold Split
-# ============================================
+
 def stratified_scaffold_split(smiles_list, labels, frac_train=0.7, frac_val=0.1, seed=42):
     scaffolds = defaultdict(list)
     for i, (smi, label) in enumerate(zip(smiles_list, labels)):
@@ -182,9 +172,7 @@ def stratified_scaffold_split(smiles_list, labels, frac_train=0.7, frac_val=0.1,
 
     return np.array(train_idx), np.array(val_idx), np.array(test_idx)
 
-# ============================================
-# K-Fold Scaffold Cross-Validation
-# ============================================
+
 def kfold_scaffold_split(smiles_list, labels, n_folds=5, seed=42):
     scaffolds = defaultdict(list)
     for i, (smi, label) in enumerate(zip(smiles_list, labels)):
@@ -230,9 +218,7 @@ def kfold_scaffold_split(smiles_list, labels, n_folds=5, seed=42):
               f"Test active: {np.mean([labels[j] for j in test_idx]):.3f}")
     return splits
 
-# ============================================
-# 2D Bond Features
-# ============================================
+
 BOND_FEAT_2D = 7
 BOND_TYPES = {
     Chem.BondType.SINGLE: 0,
@@ -241,9 +227,7 @@ BOND_TYPES = {
     Chem.BondType.AROMATIC: 3
 }
 
-# ============================================
-# Graph Construction (2D only)
-# ============================================
+
 def get_2d_graph(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
